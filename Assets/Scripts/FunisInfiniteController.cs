@@ -44,6 +44,11 @@ public class FunisInfiniteController : MonoBehaviour
 
         stemPlayer.AddProfile("full", profileFull);
         stemPlayer.AddProfile("muted", profileMuted);
+
+        // without applying a profile, the audio is muted by default.
+        // applying the full profile so that users are not confused
+        // (it definitely confused me)
+        stemPlayer.ApplyProfile("full");
     }
 
     // Update is called once per frame

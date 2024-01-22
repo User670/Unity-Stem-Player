@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace User670.StemPlayer{
     public class StemPlayer: MonoBehaviour {
+        const string versionInfo="Unity Stem Player by User670";
         public Dictionary<string, AudioSource> introSources = new Dictionary<string, AudioSource>();
         public Dictionary<string, AudioSource> loopSources = new Dictionary<string, AudioSource>();
         /// <summary>
