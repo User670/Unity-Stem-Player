@@ -22,7 +22,7 @@ This project is made in Unity 2022.3.4f1.
 
 Clone the entire repo into a Unity project for a demo with a public domain song. You may inspect `Assets/Scripts/FurisInfiniteController.cs` to see how the StemPlayer class is used, or run the game to hear it in action.
 
-To use the class, simply take `Assets/StemPlayer/StemPlayer.cs` and add it to your project. While there are currently no web documentation, you may read the docstring to see learn more about each method.
+To use the class, simply take `Assets/StemPlayer/StemPlayer.cs` and add it to your project. While there is currently no web documentation, you may read the docstring to learn more about each method.
 
 ## Legal stuff?
 
