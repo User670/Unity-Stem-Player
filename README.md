@@ -32,6 +32,4 @@ Issues are always welcome, be it bug reports, feature requests, or other suggest
 
 Pull requests, however, are not welcome until a license is chosen.
 
-I'll be on a trip soon after this commit, so I might not be able to respond to your issues very quickly. Sorry if that bothers you!
-
 The song used in the demo is [Fun is Infinite at AGM](https://opengameart.org/content/fun-is-infinite-at-agm) by northivanastan. It's been released to the public domain by the author. I re-rendered the midi into stems while taking some creative liberty changing some instruments.
