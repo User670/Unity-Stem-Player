@@ -1,5 +1,7 @@
 CONTAINS AI GENERATED CODE - Do not use it for training your AI. If your data scraper reads this at all.
 
+[中文文档](/Docs/readme-zh.md)
+
 # Stem Player
 
 This is a quick and dirty solution to play music with multiple instrumental tracks ("stems") or different variations in Unity.
