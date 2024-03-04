@@ -273,6 +273,10 @@ namespace User670.StemPlayer{
         }
 
         public void PlayAndFadeIn(float duration){
+            if(state==State.stopped){
+                fadeInOutVolume = 0;
+                UpdateVolume();
+            }
             if (waitForAudioToLoad) {
                 state = State.waiting;
                 waitAudioToLoadCoroutine = StartCoroutine(DoWaitAndFadeIn(duration));
