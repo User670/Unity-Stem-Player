@@ -163,10 +163,10 @@ namespace User670.StemPlayer{
         }
 
         /// <summary>
-        /// 
+        /// Add or update a profile by name.
         /// </summary>
-        /// <param name="name"></param>
-        /// <param name="profile"></param>
+        /// <param name="name">Name of the profile</param>
+        /// <param name="profile">The dictionary containing the profile</param>
         public void AddProfile(string name, Dictionary<string, float> profile) {
             if (profiles.ContainsKey(name)) {
                 profiles[name] = profile;
@@ -246,6 +246,11 @@ namespace User670.StemPlayer{
             UpdateVolume();
         }
 
+        /// <summary>
+        /// Start a crossfade to a profile.
+        /// </summary>
+        /// <param name="name">Name of the profile to cross fade to</param>
+        /// <param name="duration">Duration of the cross fade</param>
         public void StartFadeToProfile(string name, float duration) {
             if (ProfilesEquivalent(targetProfile, profiles[name])) {
                 // Target profile is already the profile being requested, don't repeat fade
@@ -256,6 +261,11 @@ namespace User670.StemPlayer{
             StartFadeProfileCoroutine(DoFadeProfile(duration));
         }
 
+        /// <summary>
+        /// Start a crossfade to a profile.
+        /// Uses default fade time.
+        /// </summary>
+        /// <param name="name">Name of the profile to fade to</param>
         public void StartFadeToProfile(string name) {
             StartFadeToProfile(name, defaultFadeVolumeTime);
         }
@@ -272,6 +282,10 @@ namespace User670.StemPlayer{
             }
         }
 
+        /// <summary>
+        /// Sets the volume to 0, starts playing the audio, and start a fade in.
+        /// </summary>
+        /// <param name="duration">Duration of the fade in</param>
         public void PlayAndFadeIn(float duration){
             if(state==State.stopped){
                 fadeInOutVolume = 0;
@@ -286,6 +300,9 @@ namespace User670.StemPlayer{
             }
         }
 
+        /// <summary>
+        /// Sets the volume to 0, starts playing the audio, and start a fade in.
+        /// </summary>
         public void PlayAndFadeIn(){ 
             PlayAndFadeIn(defaultFadeVolumeTime);
         }
@@ -304,10 +321,17 @@ namespace User670.StemPlayer{
             state = State.stopped;
         }
 
+        /// <summary>
+        /// Start a fade out. After the fade out completes, stop the audio.
+        /// </summary>
+        /// <param name="duration">Duration of the fade out</param>
         public void FadeOutAndStop(float duration){
             StartFadeVolumeCoroutine(DoFadeOutAndStop(duration));
         }
 
+        /// <summary>
+        /// Start a fade out. After the fade out completes, stop the audio.
+        /// </summary>
         public void FadeOutAndStop() {
             FadeOutAndStop(defaultFadeVolumeTime);
         }
@@ -315,7 +339,10 @@ namespace User670.StemPlayer{
 
         #region Secondary actions
         
-
+        /// <summary>
+        /// Start playing the audio.
+        /// This is mainly used by other methods.
+        /// </summary>
         public void StartAudio() {
             UpdateVolume();
 
@@ -363,6 +390,11 @@ namespace User670.StemPlayer{
             StartAudio();
         }
 
+        /// <summary>
+        /// COROUTINE. Waits for all audio to be loaded, calls `StartAudio()`, and starts a fade in.
+        /// </summary>
+        /// <param name="duration">duration of the fade in</param>
+        /// <returns></returns>
         public IEnumerator DoWaitAndFadeIn(float duration){
             while (AllAudioLoaded() == false) {
                 yield return null;
@@ -371,6 +403,11 @@ namespace User670.StemPlayer{
             StartFadeVolumeCoroutine(DoFadeIn(duration));
         }
 
+        /// <summary>
+        /// COROUTINE. Waits for all audio to be loaded, calls `StartAudio()`, and starts a fade in.
+        /// Uses default fade time.
+        /// </summary>
+        /// <returns></returns>
         public IEnumerator DoWaitAndFadeIn(){
             return DoWaitAndFadeIn(defaultFadeVolumeTime);
         }
@@ -410,6 +447,11 @@ namespace User670.StemPlayer{
             return DoFadeProfile(defaultFadeVolumeTime);
         }
 
+        /// <summary>
+        /// COROUTINE. Fades in over some period of time.
+        /// </summary>
+        /// <param name="duration">Duration of the fade in</param>
+        /// <returns></returns>
         public IEnumerator DoFadeIn(float duration) {
             while(fadeInOutVolume < 1) {
                 fadeInOutVolume += Time.deltaTime / duration;
@@ -422,10 +464,20 @@ namespace User670.StemPlayer{
             yield break;
         }
 
+        /// <summary>
+        /// COROUTINE. Fades in over some period of time.
+        /// Uses default fade time.
+        /// </summary>
+        /// <returns></returns>
         public IEnumerator DoFadeIn(){ 
             return DoFadeIn(defaultFadeVolumeTime);
         }
 
+        /// <summary>
+        /// COROUTINE. Fades out over some period of time.
+        /// </summary>
+        /// <param name="duration">Duration of the fade out.</param>
+        /// <returns></returns>
         public IEnumerator DoFadeOut(float duration) {
             while (fadeInOutVolume > 0) {
                 fadeInOutVolume -= Time.deltaTime / duration;
@@ -438,12 +490,22 @@ namespace User670.StemPlayer{
             yield break;
         }
         
+        /// <summary>
+        /// COROUTINE. Fades out over some period of time.
+        /// Uses default fade time.
+        /// </summary>
+        /// <returns></returns>
         public IEnumerator DoFadeOut() {
             return DoFadeOut(defaultFadeVolumeTime);
         }
 
         // Does not call `DoFadeOut()` because nested coroutine makes things harder.
         // Yes this DOES violate DRY.
+        /// <summary>
+        /// COROUTINE. Fades out over some period of time, and then stops the audio.
+        /// </summary>
+        /// <param name="duration">Duration of the fade out.</param>
+        /// <returns></returns>
         public IEnumerator DoFadeOutAndStop(float duration) {
             while (fadeInOutVolume > 0) {
                 fadeInOutVolume -= Time.deltaTime / duration;
@@ -457,6 +519,11 @@ namespace User670.StemPlayer{
             yield break;
         }
 
+        /// <summary>
+        /// COROUTINE. Fades out over some period of time, and then stops the audio.
+        /// Uses default fade time.
+        /// </summary>
+        /// <returns></returns>
         public IEnumerator DoFadeOutAndStop(){ 
             return DoFadeOutAndStop(defaultFadeVolumeTime);
         }
@@ -464,6 +531,10 @@ namespace User670.StemPlayer{
         #endregion
 
         #region Coroutine management
+        /// <summary>
+        /// Stops an existing fade profile coroutine (if any), and starts a new one.
+        /// </summary>
+        /// <param name="coroutine">The new coroutine IEnumerator to start.</param>
         public void StartFadeProfileCoroutine(IEnumerator coroutine) {
             try {
                 StopCoroutine(fadeProfileCoroutine);
@@ -474,6 +545,10 @@ namespace User670.StemPlayer{
             fadeProfileCoroutine = StartCoroutine(coroutine);
         }
 
+        /// <summary>
+        /// Stops an existing fade volume coroutine (if any), and starts a new one.
+        /// </summary>
+        /// <param name="coroutine">The new coroutine IEnumerator to start.</param>
         public void StartFadeVolumeCoroutine(IEnumerator coroutine) {
             try {
                 StopCoroutine(fadeVolumeCoroutine);
@@ -500,6 +575,10 @@ namespace User670.StemPlayer{
             }
         }
 
+        /// <summary>
+        /// Check whether all audio sources are loaded.
+        /// </summary>
+        /// <returns>True if all audio sources are loaded, false if any one isn't.</returns>
         public bool AllAudioLoaded() {
             foreach (var introSource in introSources.Values) {
                 if (introSource.clip.loadState != AudioDataLoadState.Loaded) {
