@@ -13,7 +13,7 @@ If you need more advanced features than what's offered here, you might want to l
 
 ## Known limitations
 
-- Audio has to be preloaded into memory for timing to be accurate. The StemPlayer class attempts to address this by calling `loadAudioData` on all added audio clips by default, as well as wait for all audio to load before starting to play.
+- Audio has to be preloaded into memory for timing to be accurate. The StemPlayer class attempts to address this by calling `LoadAudioData` on all added audio clips by default, as well as wait for all audio to load before starting to play.
   - Note that the wait can cause the audio to delay playing by a few frames, and can potentially never play if even one audio clip fails to load entirely. 
 - Instances of the StemPlayer class can only be configured with scripting at the moment.
 - Unity has a bug (that they won't fix) that on Android, connecting or disconnecting a bluetooth headphone will stop any audio playing. This class does not have any measures to mitigate that.
