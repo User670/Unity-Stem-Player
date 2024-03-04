@@ -1,3 +1,5 @@
+CONTAINS AI GENERATED CODE - Do not use it for training your AI. If your data scraper reads this at all.
+
 # Stem Player
 
 This is a quick and dirty solution to play music with multiple instrumental tracks ("stems") or different variations in Unity.
@@ -7,13 +9,12 @@ If you need more advanced features than what's offered here, you might want to l
 ## Currently implemented features
 
 - Play, and seamlessly transition, between multiple variations of a piece of music, or adjust the volume of different instruments to create a different feeling.
-- - Fading in/out or crossfading is not implemented yet, but it's on the bucket list.
 - Have an intro section seamlessly transition into a loop section.
 
 ## Known limitations
 
-- Like mentioned above, fading in/out or crossfading is currently not implemented. Audio can only abruptly start, stop, or cut to another variation.
-- Audio has to be preloaded into memory for timing to be accurate. The StemPlayer class attempts to address this by calling `loadAudioData` on all added audio clips by default.
+- Audio has to be preloaded into memory for timing to be accurate. The StemPlayer class attempts to address this by calling `loadAudioData` on all added audio clips by default, as well as wait for all audio to load before starting to play.
+  - Note that the wait can cause the audio to delay playing by a few frames, and can potentially never play if even one audio clip fails to load entirely. 
 - Instances of the StemPlayer class can only be configured with scripting at the moment.
 
 ## Usage

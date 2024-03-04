@@ -58,18 +58,18 @@ public class FunisInfiniteController : MonoBehaviour
     }
 
     public void useProfileFull(){
-        stemPlayer.ApplyProfile("full");
+        stemPlayer.StartFadeToProfile("full");
     }
 
     public void useProfileMuted() {
-        stemPlayer.ApplyProfile("muted");
+        stemPlayer.StartFadeToProfile("muted");
     }
 
     public void play(){
-        stemPlayer.Play();
+        stemPlayer.PlayAndFadeIn();
     }
 
     public void stop(){ 
-        stemPlayer.Stop();
+        stemPlayer.FadeOutAndStop();
     }
 }

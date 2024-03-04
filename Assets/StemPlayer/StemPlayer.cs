@@ -1,26 +1,30 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using Unity.VisualScripting;
 using UnityEngine;
 
 
 namespace User670.StemPlayer{
     public class StemPlayer: MonoBehaviour {
         const string versionInfo="Unity Stem Player by User670";
-        public Dictionary<string, AudioSource> introSources = new Dictionary<string, AudioSource>();
-        public Dictionary<string, AudioSource> loopSources = new Dictionary<string, AudioSource>();
+        public Dictionary<string, AudioSource> introSources = new();
+        public Dictionary<string, AudioSource> loopSources = new();
         /// <summary>
         /// Active profile is the profile currently applied to the AudioSources.
         /// It may differ from any other profiles during a fade in/out.
         /// </summary>
-        public Dictionary<string, float> activeProfile = new Dictionary<string, float>();
+        public Dictionary<string, float> activeProfile = new();
         /// <summary>
         /// Target profile is the target of the fade in/out.
         /// </summary>
-        public Dictionary<string, float> targetProfile = new Dictionary<string, float>();
+        public Dictionary<string, float> targetProfile = new();
         /// <summary>
         /// Previous profile is the profile before a fade in/out started.
         /// </summary>
-        public Dictionary<string, float> previousProfile = new Dictionary<string, float>();
-        public Dictionary<string, Dictionary<string, float>> profiles = new Dictionary<string, Dictionary<string, float>>();
+        public Dictionary<string, float> previousProfile = new();
+        public Dictionary<string, Dictionary<string, float>> profiles = new();
 
         /// <summary>
         /// global volume is intended to be set to whatever the game's volume setting is.
@@ -30,6 +34,10 @@ namespace User670.StemPlayer{
         /// volume is intended to be set per-StemPlayer (i.e. per-song).
         /// </summary>
         public float volume = 1.0f;
+        /// <summary>
+        /// This volume is used during fade in and fade out (so that profiles don't need to be changed).
+        /// </summary>
+        float fadeInOutVolume = 1.0f;
 
         /// <summary>
         /// this many seconds before intro ends, the loop will be scheduled.
@@ -43,22 +51,40 @@ namespace User670.StemPlayer{
         /// Whether to call LoadAudioData() on audio clips when added to this class.
         /// If this is not needed, this should be set to False before adding AudioSources.
         /// This effectively does nothing if the audio clips are configured with
-        /// `preloadAudioData` - true.
+        /// `preloadAudioData` = true.
         /// </summary>
         public bool preloadAudioClips = true;
+        /// <summary>
+        /// Before playing the audio, wait for all audio to be loaded.
+        /// Can cause a few frames of delay from calling Play() to the audio actually starts.
+        /// If not wait for the audio, there could be click sounds at the transition between intro and loop,
+        /// or potentially desync between instruments.
+        /// </summary>
+        public bool waitForAudioToLoad = true;
+
+        /// <summary>
+        /// This value will be used if a duration is not passed to fading-related coroutines.
+        /// </summary>
+        public float defaultFadeVolumeTime = 1.0f;
+        public Coroutine fadeProfileCoroutine;
+        public Coroutine fadeVolumeCoroutine;
+        public Coroutine waitAudioToLoadCoroutine;
 
 
         enum State {
             stopped,
-            loopNotScheduled,
-            loopScheduled
+            waiting, // Play() called, but waiting for audio to load
+            loopNotScheduled, // Intro playing, loop not scheduled
+            loopScheduled, // Loop scheduled or is already playing
+            stopping // During the fade out of a fade-out-and-stop
         }
 
         State state = State.stopped;
 
+        #region Unity callbacks
         // Start is called before the first frame update
         void Start() {
-
+            Debug.Log(versionInfo);
         }
 
         // Update is called once per frame
@@ -75,7 +101,9 @@ namespace User670.StemPlayer{
                 state = State.loopScheduled;
             }
         }
+        #endregion
 
+        #region AudioSource and profile management
         /// <summary>
         /// Add or replace a intro AudioSource by instrument name.
         /// </summary>
@@ -118,7 +146,7 @@ namespace User670.StemPlayer{
             }
         }
 
-        /// <summary>
+       /// <summary>
         /// Removes the intro source for the specified instrument.
         /// </summary>
         /// <param name="instrument">The instrument to remove the intro source for.</param>
@@ -154,27 +182,143 @@ namespace User670.StemPlayer{
         public void RemoveProfile(string name) {
             profiles.Remove(name);
         }
+        #endregion
 
+        #region Functions that set properties
+        
+
+        /// <summary>
+        /// Set the global volume and update volume of all AudioSources.
+        /// </summary>
+        /// <remark>
+        /// You may set the gloablVolume property directly, but the effects will not be applied to the
+        /// AudioSources until `UpdateVolume()` is called.
+        /// </remark>
+        /// <param name="vol">value to set to.</param>
+        public void SetGlobalVolume(float vol) {
+            globalVolume = vol;
+            UpdateVolume();
+        }
+
+        /// <summary>
+        /// Set the volume and update volume of all AudioSources.
+        /// </summary>
+        /// <remark>
+        /// You may set the volume property directly, but the effects will not be applied to the
+        /// AudioSources until `UpdateVolume()` is called.
+        /// </remark>
+        /// <param name="vol">value to set to.</param>
+        public void SetVolume(float vol) {
+            volume = vol;
+            UpdateVolume();
+        }
+
+        /// <summary>
+        /// Update volume of audio sources to `activeProfile`. Affected by `globalVolume` and `volume`.
+        /// </summary>
+        public void UpdateVolume() {
+            foreach (var pair in introSources) {
+                if (activeProfile.ContainsKey(pair.Key)) {
+                    pair.Value.volume = globalVolume * volume * fadeInOutVolume * activeProfile[pair.Key];
+                } else {
+                    pair.Value.volume = 0f;
+                }
+            }
+            foreach (var pair in loopSources) {
+                if (activeProfile.ContainsKey(pair.Key)) {
+                    pair.Value.volume = globalVolume * volume * fadeInOutVolume * activeProfile[pair.Key];
+                } else {
+                    pair.Value.volume = 0f;
+                }
+            }
+        }
+
+        #endregion
+
+        #region Main actions
         /// <summary>
         /// Apply the specified profile by name.
         /// </summary>
         /// <param name="name">The name of the profile to apply.</param>
-        public void ApplyProfile(string name){ 
+        public void ApplyProfile(string name) {
             // Apply the profile by setting the activeProfile to the specified profile and update the volume.
             activeProfile = profiles[name];
             UpdateVolume();
+        }
+
+        public void StartFadeToProfile(string name, float duration) {
+            if (ProfilesEquivalent(targetProfile, profiles[name])) {
+                // Target profile is already the profile being requested, don't repeat fade
+                return;
+            }
+            previousProfile = activeProfile;
+            targetProfile = profiles[name];
+            StartFadeProfileCoroutine(DoFadeProfile(duration));
+        }
+
+        public void StartFadeToProfile(string name) {
+            StartFadeToProfile(name, defaultFadeVolumeTime);
         }
 
         /// <summary>
         /// Plays the audio.
         /// </summary>
         public void Play() {
-            UpdateVolume(); // Update the volume
+            if (waitForAudioToLoad) {
+                state = State.waiting;
+                waitAudioToLoadCoroutine = StartCoroutine(DoWaitAndStartAudio());
+            } else {
+                StartAudio();
+            }
+        }
+
+        public void PlayAndFadeIn(float duration){
+            if (waitForAudioToLoad) {
+                state = State.waiting;
+                waitAudioToLoadCoroutine = StartCoroutine(DoWaitAndFadeIn(duration));
+            } else {
+                StartAudio();
+                StartFadeVolumeCoroutine(DoFadeIn(duration));
+            }
+        }
+
+        public void PlayAndFadeIn(){ 
+            PlayAndFadeIn(defaultFadeVolumeTime);
+        }
+
+
+        /// <summary>
+        /// Stops all audio sources.
+        /// </summary>
+        public void Stop() {
+            foreach (var introSource in introSources.Values) {
+                introSource.Stop();
+            }
+            foreach (var loopSource in loopSources.Values) {
+                loopSource.Stop();
+            }
+            state = State.stopped;
+        }
+
+        public void FadeOutAndStop(float duration){
+            StartFadeVolumeCoroutine(DoFadeOutAndStop(duration));
+        }
+
+        public void FadeOutAndStop() {
+            FadeOutAndStop(defaultFadeVolumeTime);
+        }
+        #endregion
+
+        #region Secondary actions
+        
+
+        public void StartAudio() {
+            UpdateVolume();
 
             // if there are no intro
-            if(introSources.Count == 0) {
+            if (introSources.Count == 0) {
                 // directly play loop
-                foreach(var loopSource in loopSources.Values) {
+                foreach (var loopSource in loopSources.Values) {
                     loopSource.Play();
                 }
                 state = State.loopScheduled;
@@ -183,16 +327,16 @@ namespace User670.StemPlayer{
 
             // if there are intro
             bool flagHasSetLoopStartDspTime = false;
-            foreach(var introSource in introSources.Values) {
+            foreach (var introSource in introSources.Values) {
                 introSource.Play();
-                if(flagHasSetLoopStartDspTime == false) {
+                if (flagHasSetLoopStartDspTime == false) {
                     loopStartDspTime = AudioSettings.dspTime + GetDoubleClipLength(introSource);
                     flagHasSetLoopStartDspTime = true;
                 }
             }
-            if(transitionLookAhead <= 0) {
+            if (transitionLookAhead <= 0) {
                 // schedule loop immediately
-                foreach(var loopSource in loopSources.Values) {
+                foreach (var loopSource in loopSources.Values) {
                     loopSource.PlayScheduled(loopStartDspTime);
                 }
                 state = State.loopScheduled;
@@ -200,18 +344,170 @@ namespace User670.StemPlayer{
                 state = State.loopNotScheduled;
             }
         }
+        #endregion
+
+        #region Coroutines
+        /// <summary>
+        /// COROUTINE. Waits for all audio to be loaded before calling `StartAudio()`.
+        /// This CAN get stuck if an audio failed to load entirely.
+        /// </summary>
+        /// <returns></returns>
+        public IEnumerator DoWaitAndStartAudio() {
+            while (AllAudioLoaded() == false) {
+                yield return null;
+            }
+            StartAudio();
+        }
+
+        public IEnumerator DoWaitAndFadeIn(float duration){
+            while (AllAudioLoaded() == false) {
+                yield return null;
+            }
+            StartAudio();
+            StartFadeVolumeCoroutine(DoFadeIn(duration));
+        }
+
+        public IEnumerator DoWaitAndFadeIn(){
+            return DoWaitAndFadeIn(defaultFadeVolumeTime);
+        }
 
         /// <summary>
-        /// Stops all audio sources.
+        /// COROUTINE. Fades volume from `previousProfile` to `targetProfile` across `duration` seconds.
+        /// Before calling this coroutine, you need to set `previousProfile` and `targetProfile` beforehand,
+        /// and do not modify them while the coroutine is active.
         /// </summary>
-        public void Stop(){ 
-            foreach(var introSource in introSources.Values){
-                introSource.Stop();
+        /// <param name="duration">How long the fade should be, in seconds.</param>
+        /// <returns></returns>
+        public IEnumerator DoFadeProfile(float duration) {
+            float timeElapsed=0;
+            float timerProgress;
+            while (true) {
+                timerProgress = timeElapsed / duration;
+                if (timerProgress > 1) {
+                    timerProgress = 1;
+                }
+                SetFadeVolumeProfile(timerProgress);
+                UpdateVolume();
+                timeElapsed += Time.deltaTime;
+                if (timerProgress == 1) {
+                    yield break;
+                }
+                yield return null;
             }
-            foreach(var loopSource in loopSources.Values){
-                loopSource.Stop();
+        }
+
+        /// <summary>
+        /// COROUTINE. Fades volume from `previousProfile` to `targetProfile` across `defaultFadeVolumeTime` seconds.
+        /// Before calling this coroutine, you need to set `previousProfile` and `targetProfile` beforehand,
+        /// and do not modify them while the coroutine is active.
+        /// </summary>
+        /// <returns></returns>
+        public IEnumerator DoFadeProfile() {
+            return DoFadeProfile(defaultFadeVolumeTime);
+        }
+
+        public IEnumerator DoFadeIn(float duration) {
+            while(fadeInOutVolume < 1) {
+                fadeInOutVolume += Time.deltaTime / duration;
+                if(fadeInOutVolume > 1) {
+                    fadeInOutVolume = 1;
+                }
+                UpdateVolume();
+                yield return null;
             }
-            state = State.stopped;
+            yield break;
+        }
+
+        public IEnumerator DoFadeIn(){ 
+            return DoFadeIn(defaultFadeVolumeTime);
+        }
+
+        public IEnumerator DoFadeOut(float duration) {
+            while (fadeInOutVolume > 0) {
+                fadeInOutVolume -= Time.deltaTime / duration;
+                if (fadeInOutVolume < 0) {
+                    fadeInOutVolume = 0;
+                }
+                UpdateVolume();
+                yield return null;
+            }
+            yield break;
+        }
+        
+        public IEnumerator DoFadeOut() {
+            return DoFadeOut(defaultFadeVolumeTime);
+        }
+
+        // Does not call `DoFadeOut()` because nested coroutine makes things harder.
+        // Yes this DOES violate DRY.
+        public IEnumerator DoFadeOutAndStop(float duration) {
+            while (fadeInOutVolume > 0) {
+                fadeInOutVolume -= Time.deltaTime / duration;
+                if (fadeInOutVolume < 0) {
+                    fadeInOutVolume = 0;
+                }
+                UpdateVolume();
+                yield return null;
+            }
+            Stop();
+            yield break;
+        }
+
+        public IEnumerator DoFadeOutAndStop(){ 
+            return DoFadeOutAndStop(defaultFadeVolumeTime);
+        }
+
+        #endregion
+
+        #region Coroutine management
+        public void StartFadeProfileCoroutine(IEnumerator coroutine) {
+            try {
+                StopCoroutine(fadeProfileCoroutine);
+            }catch (NullReferenceException) {
+                // do nothing
+                // catches only NullReferenceException. Let the rest of the errors throw normally.
+            }
+            fadeProfileCoroutine = StartCoroutine(coroutine);
+        }
+
+        public void StartFadeVolumeCoroutine(IEnumerator coroutine) {
+            try {
+                StopCoroutine(fadeVolumeCoroutine);
+            } catch (NullReferenceException) {
+                // do nothing
+                // catches only NullReferenceException. Let the rest of the errors throw normally.
+            }
+            fadeVolumeCoroutine = StartCoroutine(coroutine);
+        }
+        #endregion
+
+        #region Helper functions
+        /// <summary>
+        /// Lerps `previousProfile` and `targetProfile` and stores the result in `activeProfile`.
+        /// </summary>
+        /// <param name="progress">Percentage progress of the fade, between 0 and 1.</param>
+        public void SetFadeVolumeProfile(float progress) {
+            var keys = previousProfile.Keys.Union(targetProfile.Keys);
+            activeProfile = new Dictionary<string, float>();
+            foreach (var key in keys) {
+                float a = previousProfile.TryGetValue(key, out float value) ? value : 0f;
+                float b = targetProfile.TryGetValue(key, out value) ? value : 0f;
+                activeProfile[key] = Mathf.Lerp(a, b, progress);
+            }
+        }
+
+        public bool AllAudioLoaded() {
+            foreach (var introSource in introSources.Values) {
+                if (introSource.clip.loadState != AudioDataLoadState.Loaded) {
+                    return false;
+                }
+            }
+            foreach (var loopSource in loopSources.Values) {
+                if (loopSource.clip.loadState != AudioDataLoadState.Loaded) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>
@@ -222,7 +518,7 @@ namespace User670.StemPlayer{
             int length=-1;
             int sr=-1; //sample rate
             foreach (AudioSource source in introSources.Values) {
-                if (length<0) {
+                if (length < 0) {
                     length = source.clip.samples;
                     sr = source.clip.frequency;
                 } else {
@@ -255,49 +551,6 @@ namespace User670.StemPlayer{
         }
 
         /// <summary>
-        /// Set the global volume and update volume of all AudioSources.
-        /// </summary>
-        /// <remark>
-        /// You may set the gloablVolume property directly, but the effects will not be applied to the
-        /// AudioSources until `UpdateVolume()` is called.
-        /// </remark>
-        /// <param name="vol">value to set to.</param>
-        public void SetGlobalVolume(float vol){
-            globalVolume = vol;
-            UpdateVolume();
-        }
-
-        /// <summary>
-        /// Set the volume and update volume of all AudioSources.
-        /// </summary>
-        /// <remark>
-        /// You may set the volume property directly, but the effects will not be applied to the
-        /// AudioSources until `UpdateVolume()` is called.
-        /// </remark>
-        /// <param name="vol">value to set to.</param>
-        public void SetVolume(float vol){
-            volume = vol;
-            UpdateVolume();
-        }
-
-        public void UpdateVolume(){ 
-            foreach(var pair in introSources){ 
-                if(activeProfile.ContainsKey(pair.Key)){ 
-                    pair.Value.volume = globalVolume * volume * activeProfile[pair.Key];
-                }else{
-                    pair.Value.volume = 0f;
-                }
-            }
-            foreach (var pair in loopSources) {
-                if (activeProfile.ContainsKey(pair.Key)) {
-                    pair.Value.volume = globalVolume * volume * activeProfile[pair.Key];
-                } else {
-                    pair.Value.volume = 0f;
-                }
-            }
-        }
-
-        /// <summary>
         /// Obtain the length of the clip in seconds, using the clip's sample rate and length in samples.
         /// This returns a `double` instead of a `float`, which helps with sample-accurate stitching of audio.
         /// </summary>
@@ -316,5 +569,27 @@ namespace User670.StemPlayer{
         static double GetDoubleClipLength(AudioSource source) {
             return GetDoubleClipLength(source.clip);
         }
+
+        /// <summary>
+        /// Determine whether two profiles are equivalent - that is, all the volume values are the same.
+        /// A missing key is treated the same as a value of zero, so {bass: 0} and {} are equivalent.
+        /// </summary>
+        /// <param name="profileA"></param>
+        /// <param name="profileB"></param>
+        /// <returns></returns>
+        static bool ProfilesEquivalent(Dictionary<string, float> profileA, Dictionary<string, float> profileB) {
+            var keys = profileA.Keys.Union(profileB.Keys);
+            foreach (var key in keys) {
+                float a = profileA.TryGetValue(key, out float value) ? value : 0f;
+                float b = profileB.TryGetValue(key, out value) ? value : 0f;
+                if (a != b) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        #endregion
+
+
     }
 }
