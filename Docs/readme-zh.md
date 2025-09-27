@@ -26,12 +26,35 @@
 
 要使用该类，直接将 `Assets/StemPlayer/StemPlayer.cs` 放入您的工程。当前没有网页版文档，但是您可以阅读代码内的文档注释。
 
-## 法律问题？
 
-我不清楚我要如何授权本仓库。在我选择授权协议之前，您也许要考虑避免在商业项目中使用本仓库，或者发送 pull request。
+## 法律问题
+我于2025年9月27日将**本仓库中我拥有著作权的部分**使用 [WTFPL 第三版](https://github.com/sirkris/WTFPL/blob/master/WTFPL.md?plain=1) 授权。
 
-欢迎您发送 issues，无论是汇报 bug，提出新功能建议，或者有其他的看法。最好能向我建议一下什么授权协议比较合适。
+**请注意，这不代表您有权利使用本仓库**：请务必阅读下面的解释。如有需要，请您咨询您的法律团队。
 
-但是在我选好授权协议之前，我无法接受 pull requests。
+### 我（和AI）编写的代码
+受影响的文件：
+- `Assets/StemPlayer/StemPlayer.cs`
+- `Assets/Scripts/FunIsInfiniteController.cs`
 
-Demo 中使用的歌曲是 [Fun is Infinite at AGM](https://opengameart.org/content/fun-is-infinite-at-agm)，作者 northivanastan。歌曲被作者释出到公有领域。我将它的 midi 文档重新渲染成了分轨档，并自作主张更换了一些乐器。
+我拥有著作权部分的代码通过 [WTFPL 第三版](https://github.com/sirkris/WTFPL/blob/master/WTFPL.md?plain=1) 授权。
+
+部分的代码是借助生成式人工智能 (generative AI) 编写的。具体来讲，我使用了 [Perplexity AI](https://www.perplexity.ai/) 和 [Windsurf （旧称 Codeium）](https://windsurf.com/) 两个工具。 **我无法确认哪部分的代码是部分或全部由AI编写的。** 授权协议的有效性和生效范围取决于法律如何规定AI生成内容的著作权归属——我不了解相关法律，也没有律师执照，无法提供相关法律的信息。
+
+我强烈建议您在使用我的代码之前咨询律师。
+
+### 示例音乐
+受影响的文件：
+- `Assets/Sample Song/Fun is Infinite at AGM` 中的 `.wav` 文件
+
+这首用于项目中示例的歌曲是 [Fun is Infinite at AGM](https://opengameart.org/content/fun-is-infinite-at-agm)，作者 northivanastan。这首歌曲被原作者释出到公有领域 (public domain)。
+
+我用一个叫做 [Bandlab](https://www.bandlab.com/) 的网页音乐应用将原始 MIDI 文件重新渲染成音频文件，过程中使用了 Bandlab 提供的虚拟乐器和效果器。除非 Bandlab 对授权有任何限制，这些音频文件也通过 [WTFPL 第三版](https://github.com/sirkris/WTFPL/blob/master/WTFPL.md?plain=1) 授权。
+
+我**无法**在 Bandlab 的使用条款里找到**针对虚拟乐器的授权条款**。如果您希望使用该音乐，您也应该考虑阅读 Bandlab 的法律条款并咨询律师。
+
+### 自动生成的和第三方的模板文件和配置文件
+受影响的文件：
+- 上述未提到的文件，`README.md` 和 `Docs/readme-zh.md` 除外
+
+因为本仓库是一个完整的 Unity 工程，本仓库自然地包含由 Unity 引擎、Visual Studio 和 Git 生成的文件，也包含一个从 [`github/gitignore` 仓库](https://github.com/github/gitignore/blob/main/Unity.gitignore) 获取的 `.gitignore` 文件。我没有这些文件的版权，您应该按照这些文件来源的授权协议使用这些文件。
