@@ -22,7 +22,7 @@
 
 本项目使用 Unity 2022.3.4f1 制作。
 
-整个仓库当作一个 Unity 工程是一个 demo，里面预置了一首无版权歌曲。可以查看 `Assets/Scripts/FurisInfiniteController.cs` 了解该 demo 如何使用 StemPlayer 类，或者运行游戏听听效果。
+整个仓库当作一个 Unity 工程是一个 demo，里面预置了一首无版权歌曲。可以查看 `Assets/Scripts/FunisInfiniteController.cs` 了解该 demo 如何使用 StemPlayer 类，或者运行游戏听听效果。
 
 要使用该类，直接将 `Assets/StemPlayer/StemPlayer.cs` 放入您的工程。当前没有网页版文档，但是您可以阅读代码内的文档注释。
 
